@@ -18,70 +18,89 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # ########################################################################
+
 # Helper cmake script to automate building dependencies for hipblas
 # This script can be invoked manually by the user with 'cmake -P'
 
-# ROCm software requires Ubuntu 16.04 or Fedora 24, which has cmake 3.5
-cmake_minimum_required( VERSION 3.5 )
-
-list( APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../cmake )
-
-# Consider removing this in the future
-# It can be annoying for visual studio developers to build a project that tries to install into 'program files'
-if( WIN32 AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT )
-  set( CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/package" CACHE PATH "Install path prefix, prepended onto install directories" FORCE )
-endif( )
-
-# This has to be initialized before the project() command appears
-# Set the default of CMAKE_BUILD_TYPE to be release, unless user specifies with -D.  MSVC_IDE does not use CMAKE_BUILD_TYPE
-if( NOT DEFINED CMAKE_CONFIGURATION_TYPES AND NOT DEFINED CMAKE_BUILD_TYPE )
-  set( CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel." )
-endif()
+cmake_minimum_required(VERSION 3.16)
 
 # The superbuild does not build anything itself; all compiling is done in external projects
-project( hipblas-dependencies NONE )
+project(hipblas-dependencies NONE)
 
-option( BUILD_GTEST "Download and build googletest library" ON )
-option( BUILD_LAPACK "Download and build lapack library" ON )
+# Set default install prefix if not specified
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  if(WIN32)
+    set(CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/package" CACHE PATH "Install path prefix" FORCE)
+  else()
+    set(CMAKE_INSTALL_PREFIX "/opt/rocm" CACHE PATH "Install path prefix" FORCE)
+  endif()
+endif()
 
-# option( BUILD_VERBOSE "Print helpful build debug information" OFF )
+# Set the default build type to Release
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build" FORCE)
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
 
-# if( BUILD_VERBOSE )
-#   message( STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}" )
-#   message( STATUS "CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}" )
-#   message( STATUS "CMAKE_SOURCE_DIR: ${CMAKE_SOURCE_DIR}" )
-#   message( STATUS "CMAKE_CURRENT_SOURCE_DIR: ${CMAKE_CURRENT_SOURCE_DIR}" )
-#   message( STATUS "CMAKE_CURRENT_BINARY_DIR: ${CMAKE_CURRENT_BINARY_DIR}" )
-#   message( STATUS "CMAKE_CURRENT_LIST_DIR: ${CMAKE_CURRENT_LIST_DIR}" )
-#   message( STATUS "CMAKE_CURRENT_LIST_FILE: ${CMAKE_CURRENT_LIST_FILE}" )
-# endif( )
+# Options for controlling which dependencies to build
+option(HIPBLAS_DEPS_BUILD_GTEST "Download and build googletest library" ON)
+option(HIPBLAS_DEPS_BUILD_LAPACK "Download and build lapack library" ON)
+
+# Add module paths
+list(APPEND CMAKE_MODULE_PATH 
+  "${CMAKE_CURRENT_SOURCE_DIR}" 
+  "${CMAKE_CURRENT_SOURCE_DIR}/../cmake"
+)
 
 # This module scrapes the CMakeCache.txt file and attempts to get all the cli options the user specified to cmake invocation
-include( get-cli-arguments )
+include(get-cli-arguments)
 
-# The following is a series of super-build projects; this cmake project will download and build
-if( BUILD_GTEST )
-  include( external-gtest )
+# Include ExternalProject for dependency management
+include(ExternalProject)
 
-  list( APPEND hipblas_dependencies googletest )
-  set( gtest_custom_target COMMAND cd ${GTEST_BINARY_ROOT}$<SEMICOLON> ${CMAKE_COMMAND} --build . --target install )
-endif( )
+# List to track all dependencies
+set(HIPBLAS_DEPENDENCIES)
 
-if( BUILD_LAPACK )
-  include( external-lapack )
+# Build GTest if requested
+if(HIPBLAS_DEPS_BUILD_GTEST)
+  include(external-gtest)
+  list(APPEND HIPBLAS_DEPENDENCIES googletest)
+endif()
 
-  list( APPEND hipblas_dependencies lapack )
-  set( lapack_custom_target COMMAND cd ${LAPACK_BINARY_ROOT}$<SEMICOLON> ${CMAKE_COMMAND} --build . --target install )
-endif( )
+# Build LAPACK if requested
+if(HIPBLAS_DEPS_BUILD_LAPACK)
+  include(external-lapack)
+  list(APPEND HIPBLAS_DEPENDENCIES lapack)
+endif()
 
-# POLICY CMP0037 - "Target names should not be reserved and should match a validity pattern"
-# Familiar target names like 'install' should be OK at the super-build level
-if( POLICY CMP0037 )
-  cmake_policy( SET CMP0037 OLD )
-endif( )
+# Create a custom target that builds all dependencies
+if(HIPBLAS_DEPENDENCIES)
+  # Use add_custom_target to create an 'install' target at the superbuild level
+  # This is safe because this is a NONE project (no language enabled)
+  add_custom_target(install-dependencies
+    COMMENT "Installing hipBLAS dependencies"
+    DEPENDS ${HIPBLAS_DEPENDENCIES}
+  )
+  
+  # For backward compatibility, also provide 'install' target
+  # Note: This requires CMP0037 OLD policy
+  if(POLICY CMP0037)
+    cmake_policy(SET CMP0037 OLD)
+  endif()
+  
+  add_custom_target(install
+    COMMENT "Installing hipBLAS dependencies (legacy target)"
+    DEPENDS install-dependencies
+  )
+else()
+  message(STATUS "No dependencies selected to build")
+endif()
 
-add_custom_target( install
-  ${gtest_custom_target}
-  ${lapack_custom_target}
-  DEPENDS ${hipblas_dependencies}
-)
+# Print summary
+message(STATUS "")
+message(STATUS "hipBLAS Dependencies Configuration Summary:")
+message(STATUS "  Install Prefix: ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "  Build GTest: ${HIPBLAS_DEPS_BUILD_GTEST}")
+message(STATUS "  Build LAPACK: ${HIPBLAS_DEPS_BUILD_LAPACK}")
+message(STATUS "")
