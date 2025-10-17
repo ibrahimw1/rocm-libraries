@@ -1,0 +1,133 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default Build",
+      "description": "Default hipBLAS build configuration",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INSTALL_PREFIX": "/opt/rocm",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "HIPBLAS_BUILD_SHARED_LIBS": "ON"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "default",
+      "displayName": "Debug Build",
+      "description": "Debug build with symbols",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "clients",
+      "inherits": "default",
+      "displayName": "Build with Clients",
+      "description": "Build library with all client components",
+      "cacheVariables": {
+        "HIPBLAS_ENABLE_CLIENT": "ON",
+        "HIPBLAS_BUILD_TESTING": "ON",
+        "HIPBLAS_ENABLE_BENCHMARKS": "ON",
+        "HIPBLAS_ENABLE_SAMPLES": "ON"
+      }
+    },
+    {
+      "name": "tests",
+      "inherits": "default",
+      "displayName": "Build with Tests",
+      "description": "Build library and tests only",
+      "cacheVariables": {
+        "HIPBLAS_ENABLE_CLIENT": "ON",
+        "HIPBLAS_BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "benchmarks",
+      "inherits": "default",
+      "displayName": "Build with Benchmarks",
+      "description": "Build library and benchmarks",
+      "cacheVariables": {
+        "HIPBLAS_ENABLE_CLIENT": "ON",
+        "HIPBLAS_ENABLE_BENCHMARKS": "ON"
+      }
+    },
+    {
+      "name": "samples",
+      "inherits": "default",
+      "displayName": "Build with Samples",
+      "description": "Build library and samples",
+      "cacheVariables": {
+        "HIPBLAS_ENABLE_CLIENT": "ON",
+        "HIPBLAS_ENABLE_SAMPLES": "ON"
+      }
+    },
+    {
+      "name": "static",
+      "inherits": "default",
+      "displayName": "Static Library Build",
+      "description": "Build hipBLAS as static library",
+      "cacheVariables": {
+        "HIPBLAS_BUILD_SHARED_LIBS": "OFF"
+      }
+    },
+    {
+      "name": "coverage",
+      "inherits": "debug",
+      "displayName": "Code Coverage Build",
+      "description": "Build with code coverage instrumentation",
+      "cacheVariables": {
+        "HIPBLAS_ENABLE_COVERAGE": "ON",
+        "HIPBLAS_ENABLE_CLIENT": "ON",
+        "HIPBLAS_BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "asan",
+      "inherits": "debug",
+      "displayName": "Address Sanitizer Build",
+      "description": "Build with address sanitizer enabled",
+      "cacheVariables": {
+        "HIPBLAS_ENABLE_ASAN": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "displayName": "Default Build",
+      "description": "Build using default configuration"
+    },
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "displayName": "Debug Build",
+      "description": "Build debug configuration"
+    },
+    {
+      "name": "clients",
+      "configurePreset": "clients",
+      "displayName": "Build Clients",
+      "description": "Build all clients"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "configurePreset": "tests",
+      "displayName": "Run Tests",
+      "description": "Run hipBLAS unit tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}
